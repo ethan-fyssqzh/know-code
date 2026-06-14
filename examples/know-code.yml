@@ -1,0 +1,10 @@
+output: .know-code
+strategy: hierarchical
+min_nodes: 4
+title: Example Know Code Workspace
+
+repos:
+  - path: .
+    name: current-repo
+
+# adapter_config: examples/framework-adapters.json

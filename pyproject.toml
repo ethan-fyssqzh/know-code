@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "know-code"
+version = "0.1.0"
+description = "Evidence-backed cross-repository logic graph for AI coding agents"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Know Code" }]
+dependencies = []
+license = { text = "MIT" }
+keywords = ["ai-coding", "code-intelligence", "knowledge-graph", "static-analysis"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Documentation",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.scripts]
+know-code = "know_code.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
