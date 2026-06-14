@@ -17,7 +17,7 @@ HTTP APIs, RPC, events, and company-specific framework wrappers.
 ```bash
 python -m pip install -e .
 know-code init
-know-code index
+know-code index --open
 know-code open
 ```
 
@@ -35,6 +35,12 @@ repos:
 ```
 
 For multiple repositories:
+
+```bash
+know-code init ../android-app ../ios-app ../h5-member-center ../subscription-service
+```
+
+Or edit `.know-code.yml` manually:
 
 ```yaml
 output: .know-code
@@ -56,7 +62,7 @@ repos:
 Then run:
 
 ```bash
-know-code index --config .know-code.yml
+know-code index --config .know-code.yml --open
 know-code open .know-code
 ```
 
@@ -121,9 +127,11 @@ capability_depends_on
 High-level commands:
 
 ```bash
-know-code init
-know-code index
+know-code init repo-a repo-b repo-c
+know-code doctor
+know-code index --open
 know-code open
+know-code serve .know-code
 know-code global /path/to/repo-a /path/to/repo-b --out-dir .know-code
 ```
 

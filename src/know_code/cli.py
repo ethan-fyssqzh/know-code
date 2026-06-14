@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import sys
@@ -25,6 +27,10 @@ def main(argv: list[str] | None = None) -> int:
         return run_index(args)
     if args.command == "open":
         return run_open(args)
+    if args.command == "serve":
+        return run_serve(args)
+    if args.command == "doctor":
+        return run_doctor(args)
     if args.command == "scan":
         return run_scan(args)
     if args.command == "diff":
@@ -50,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     init = subparsers.add_parser("init", help="create a Know Code workspace config")
+    init.add_argument("repos", nargs="*", type=Path, help="repositories to include in the generated config")
     init.add_argument("--config", type=Path, default=Path(DEFAULT_CONFIG))
     init.add_argument("--force", action="store_true")
 
@@ -59,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     index.add_argument("--strategy", choices=["auto", "label", "hierarchical"])
     index.add_argument("--min-nodes", type=int)
     index.add_argument("--adapter-config", type=Path)
+    index.add_argument("--open", action="store_true", help="open the serving graph after indexing")
 
     open_cmd = subparsers.add_parser("open", help="open a generated Know Code graph")
     open_cmd.add_argument("workspace", nargs="?", type=Path, default=Path(".know-code"))
@@ -68,6 +76,16 @@ def build_parser() -> argparse.ArgumentParser:
         default="serving",
         help="workspace artifact to open",
     )
+
+    serve = subparsers.add_parser("serve", help="serve a Know Code workspace over local HTTP")
+    serve.add_argument("workspace", nargs="?", type=Path, default=Path(".know-code"))
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--no-open", action="store_true", help="do not open the browser")
+
+    doctor = subparsers.add_parser("doctor", help="check config, repositories, and workspace artifacts")
+    doctor.add_argument("--config", type=Path, default=Path(DEFAULT_CONFIG))
+    doctor.add_argument("--workspace", type=Path)
 
     scan = subparsers.add_parser("scan", help="scan repositories and write graph facts")
     scan.add_argument("repos", nargs="+", type=Path)
@@ -139,7 +157,7 @@ def run_init(args: argparse.Namespace) -> int:
     if args.config.exists() and not args.force:
         print(f"Config already exists: {args.config}. Use --force to overwrite.")
         return 1
-    write_default_config(args.config)
+    write_default_config(args.config, args.repos or None)
     print(f"Wrote config to {args.config}")
     return 0
 
@@ -162,6 +180,8 @@ def run_index(args: argparse.Namespace) -> int:
     print(f"- Serving graph: {manifest['outputs']['serving_graph']}")
     print(f"- Capability graph: {manifest['outputs']['capability_graph']}")
     print(f"- Manifest: {manifest['outputs']['manifest']}")
+    if args.open:
+        open_path(Path(manifest["outputs"]["serving_graph"]))
     return 0
 
 
@@ -176,9 +196,69 @@ def run_open(args: argparse.Namespace) -> int:
     if not target.exists():
         print(f"Missing artifact: {target}")
         return 1
-    webbrowser.open(target.as_uri())
-    print(f"Opened {target}")
+    open_path(target)
     return 0
+
+
+def run_serve(args: argparse.Namespace) -> int:
+    workspace = args.workspace.resolve()
+    if not workspace.exists():
+        print(f"Missing workspace: {workspace}")
+        return 1
+    handler = partial(SimpleHTTPRequestHandler, directory=str(workspace))
+    server = ThreadingHTTPServer((args.host, args.port), handler)
+    url = f"http://{args.host}:{server.server_port}/global.serving.html"
+    print(f"Serving {workspace} at {url}")
+    if not args.no_open:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped server.")
+    finally:
+        server.server_close()
+    return 0
+
+
+def run_doctor(args: argparse.Namespace) -> int:
+    ok = True
+    if not args.config.exists():
+        print(f"missing config: {args.config}")
+        return 1
+    config = load_workspace_config(args.config)
+    print(f"config: {args.config}")
+    print(f"output: {config.output}")
+    print(f"strategy: {config.strategy}")
+    for repo in config.repos:
+        if repo.exists() and repo.is_dir():
+            print(f"repo ok: {repo}")
+        else:
+            ok = False
+            print(f"repo missing: {repo}")
+    if config.adapter_config is not None:
+        if config.adapter_config.exists():
+            print(f"adapter ok: {config.adapter_config}")
+        else:
+            ok = False
+            print(f"adapter missing: {config.adapter_config}")
+
+    workspace = (args.workspace or config.output).resolve()
+    if workspace.exists():
+        print(f"workspace: {workspace}")
+        for artifact in ["manifest.json", "global.facts.ndjson", "global.serving.html"]:
+            path = workspace / artifact
+            if path.exists():
+                print(f"artifact ok: {path}")
+            else:
+                print(f"artifact missing: {path}")
+    else:
+        print(f"workspace missing: {workspace} (run `know-code index`)")
+    return 0 if ok else 1
+
+
+def open_path(path: Path) -> None:
+    webbrowser.open(path.resolve().as_uri())
+    print(f"Opened {path}")
 
 
 def run_scan(args: argparse.Namespace) -> int:

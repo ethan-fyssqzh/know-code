@@ -2,6 +2,12 @@
 
 Know Code workspaces are configured with `.know-code.yml`.
 
+Create one from repository paths:
+
+```bash
+know-code init ../android-app ../java-service
+```
+
 ```yaml
 output: .know-code
 strategy: hierarchical
@@ -28,4 +34,3 @@ adapter_config: examples/framework-adapters.json
 
 `hierarchical` is the recommended strategy for multi-repository and native code
 workspaces because it uses build/path/module structure before operation calls.
-

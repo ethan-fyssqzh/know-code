@@ -22,16 +22,16 @@ class WorkspaceConfig:
     ignore: list[str] = field(default_factory=list)
 
 
-def default_config_text() -> str:
-    return """# Know Code workspace configuration
+def default_config_text(repos: list[Path] | None = None, base: Path | None = None) -> str:
+    repo_entries = repos_config_text(repos or [Path(".")], base or Path.cwd())
+    return f"""# Know Code workspace configuration
 output: .know-code
 strategy: hierarchical
 min_nodes: 4
 title: Know Code Workspace
 
 repos:
-  - path: .
-    name: current-repo
+{repo_entries}
 
 # adapter_config: examples/framework-adapters.json
 # ignore:
@@ -41,9 +41,24 @@ repos:
 """
 
 
-def write_default_config(path: Path) -> None:
+def write_default_config(path: Path, repos: list[Path] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(default_config_text(), encoding="utf-8")
+    path.write_text(default_config_text(repos, path.parent.resolve()), encoding="utf-8")
+
+
+def repos_config_text(repos: list[Path], base: Path) -> str:
+    lines: list[str] = []
+    for repo in repos:
+        resolved = repo.expanduser().resolve()
+        try:
+            display_path = resolved.relative_to(base).as_posix()
+        except ValueError:
+            display_path = str(resolved)
+        if display_path == "":
+            display_path = "."
+        lines.append(f"  - path: {display_path}")
+        lines.append(f"    name: {resolved.name or 'repo'}")
+    return "\n".join(lines)
 
 
 def load_workspace_config(path: Path) -> WorkspaceConfig:

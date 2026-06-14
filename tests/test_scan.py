@@ -298,6 +298,27 @@ class ScanTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertTrue((root / "graph-out" / "manifest.json").exists())
             self.assertTrue((root / "graph-out" / "global.serving.html").exists())
+            self.assertEqual(main(["doctor", "--config", str(config)]), 0)
+
+    def test_init_command_accepts_repo_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo_a = root / "repo-a"
+            repo_b = root / "repo-b"
+            repo_a.mkdir()
+            repo_b.mkdir()
+            config = root / ".know-code.yml"
+
+            exit_code = main(["init", str(repo_a), str(repo_b), "--config", str(config)])
+
+            self.assertEqual(exit_code, 0)
+            text = config.read_text(encoding="utf-8")
+            self.assertIn("path: repo-a", text)
+            self.assertIn("name: repo-a", text)
+            self.assertIn("path: repo-b", text)
+            self.assertIn("name: repo-b", text)
+            loaded = load_workspace_config(config)
+            self.assertEqual(loaded.repos, [repo_a.resolve(), repo_b.resolve()])
 
     def test_electron_ipc_and_trpc_operations(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
